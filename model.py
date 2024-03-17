@@ -158,3 +158,65 @@ for i in range(25):
         print(f'Sample {random_indices[i]} - predicted output: {A[i][1]}, correct')
     else:
         print(f'Sample {random_indices[i]} - predicted output: {A[i][1]}, wrong: actual is {A[i][0]}')
+
+
+'''
+Implement metrics to gauge the overall accuracy of
+the K-Nearest Neighbor classifier
+
+The overall and per-class accuracy will be measured.
+Per-class accuracy will also be represented by a
+'confusion matrix' that shows the frequency of actual
+and predicted class pairs
+
+The confusion matrix should ideally be diagonal due
+to matching actual and predicted classes
+'''
+
+def compute_accuracy(T, _):
+    '''
+    Given pairs (actual class, predicted class)
+    from 'T', return the ratio of correct to
+    total guesses
+    '''
+
+    total_correct = 0
+
+    for actual, predicted in T:
+        if actual == predicted:
+            total_correct += 1
+
+    return total_correct / len(T)
+
+def compute_per_class_accuracy(T, n):
+    '''
+    Given pairs (actual class, predicted class)
+    from 'T', return the ratio of correct to
+    total guesses for each class
+    '''
+
+    frequency_counts, total_counts = [0 for _ in range(n)], [0 for _ in range(n)]
+
+    for i, j in T:
+        total_counts[i] += 1
+        if i == j:
+            frequency_counts[i] += 1
+
+    return [freq / total if total != 0 else 0 for freq, total in zip(frequency_counts, total_counts)]
+
+def compute_confusion_matrix(T, N):
+    '''
+    Given pairs (actual class, predicted class)
+    from 'T', return the confusion matrix
+
+    Every entry i, j in the matrix represents the
+    frequency of actual class i and predicted
+    class j
+    '''
+
+    confusion_matrix = [[0 for _ in range(N)] for _ in range(N)]
+
+    for actual, predicted in T:
+        confusion_matrix[actual][predicted] += 1
+
+    return np.array(confusion_matrix)
