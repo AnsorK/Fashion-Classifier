@@ -220,3 +220,64 @@ def compute_confusion_matrix(T, N):
         confusion_matrix[actual][predicted] += 1
 
     return np.array(confusion_matrix)
+
+
+'''
+Tune the hyperparameter 'k', the number of
+nearest neighbors to compare a data point with,
+and 'weights', the importance of nearby points
+based on their distance
+
+Data will be split between a training and
+validation set. The validation set is a pseudo
+testing set, in that it is used to iteratively
+update hyperparameters of a model. The purpouse
+is to achieve the best generalization
+
+Here, the error ratio will be recorded and
+graphed with different 'k' values and 'weights'
+'''
+
+validation_indices = np.random.choice(60000, size=1000, replace=False)
+validation_mask = np.zeros(60000, dtype=bool)
+validation_mask[validation_indices] = True
+
+train, t_labels = train_normalized[~validation_mask], train_labels[~validation_mask]
+validation, v_labels = train_normalized[validation_mask], train_labels[validation_mask]
+
+errors_u, errors_d = [], []
+for k in range(1, 21):
+    knn_u, knn_d = KNeighborsClassifier(n_neighbors=k, weights='uniform'), KNeighborsClassifier(n_neighbors=k, weights='distance')
+    knn_u.fit(train.reshape(59000, -1), t_labels)
+    knn_d.fit(train.reshape(59000, -1), t_labels)
+
+    pred_u_labels, pred_d_labels = knn_u.predict(validation.reshape(1000, -1)), knn_d.predict(validation.reshape(1000, -1))
+    val_pred_u_labels, val_pred_d_labels = np.stack((v_labels, pred_u_labels), axis=1), np.stack((v_labels, pred_d_labels), axis=1)
+
+    error_ratio_u, error_ratio_d = 1 - compute_accuracy(val_pred_u_labels, _), 1 - compute_accuracy(val_pred_d_labels, _)
+    errors_u.append(error_ratio_u)
+    errors_d.append(error_ratio_d)
+
+k_range = np.linspace(1, 20, 20)
+
+plt.figure(figsize=(15, 5))
+plt.plot(k_range, errors_u, color='red', label='Uniform')
+plt.plot(k_range, errors_d, color='blue', label='Distance')
+plt.title('k-NN w/ Different Weighting')
+plt.xlabel('k Value')
+plt.ylabel('Error Ratio')
+
+plt.legend()
+plt.show()
+
+best_k = [errors_u.index(min(errors_u)) + 1, min(errors_u)]
+best_weight = 'uniform'
+
+temp = [errors_d.index(min(errors_d)) + 1, min(errors_d)]
+if temp[1] < best_k[1]:
+    best_k = temp[0]
+    best_weight = 'distance'
+else:
+    best_k = best_k[0]
+
+print(f'The best parameter set with lowest error is a k-value of {best_k} and {best_weight} weighting')
