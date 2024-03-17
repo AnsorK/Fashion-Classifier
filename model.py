@@ -6,9 +6,11 @@ import requests
 from sklearn.decomposition import PCA
 from sklearn.neighbors import KNeighborsClassifier
 
+
 '''
-Download and store data from the
-Fashion MNIST dataset
+The following code for downloading, importing and displaying
+the Fashion MNIST dataset is adapted from ChatGPT,
+accessed February 27, 2024
 '''
 
 def download_fashion_mnist(url, file_name):
@@ -77,8 +79,6 @@ for _ in range(10):
     random_images.append(all_images[random_index])
     random_labels.append(all_labels[random_index])
 
-random_images, random_labels = np.array(random_images), np.array(random_labels)
-
 print('10 random images:')
 
 fig, axes = plt.subplots(1, 10, figsize=(15, 5))
@@ -134,20 +134,20 @@ classify 25 random normalized testing images
 train_mean, test_mean = np.mean(train_images), np.mean(test_images)
 train_std, test_std = np.std(train_images), np.std(test_images)
 
-train_normalized, test_normalized = (train_images - train_mean) / train_std, (test_images - test_mean) / test_std
+train, test = (train_images - train_mean) / train_std, (test_images - test_mean) / test_std
 
 random_test_images, random_test_labels = [], []
 random_indices = []
 for _ in range(25):
     random_index = np.random.randint(0, 10000)
-    random_test_images.append(test_normalized[random_index])
+    random_test_images.append(test[random_index])
     random_test_labels.append(test_labels[random_index])
     random_indices.append(random_index)
 
 random_test_images, random_test_labels = np.array(random_test_images), np.array(random_test_labels)
 
 knn_classifier = KNeighborsClassifier(n_neighbors=5)
-knn_classifier.fit(train_normalized.reshape(60000, -1), train_labels)
+knn_classifier.fit(train.reshape(60000, -1), train_labels)
 
 test_predicted_labels = knn_classifier.predict(random_test_images.reshape(25, -1))
 
@@ -238,31 +238,31 @@ Here, the error ratio will be recorded and
 graphed with different 'k' values and 'weights'
 '''
 
-validation_indices = np.random.choice(60000, size=1000, replace=False)
-validation_mask = np.zeros(60000, dtype=bool)
-validation_mask[validation_indices] = True
+rand_indices = np.random.choice(60000, size=1000, replace=False)
+val_mask = np.zeros(60000, dtype=bool)
+val_mask[rand_indices] = True
 
-train, t_labels = train_normalized[~validation_mask], train_labels[~validation_mask]
-validation, v_labels = train_normalized[validation_mask], train_labels[validation_mask]
+train_2, train_labels_2 = train[~val_mask], train_labels[~val_mask]
+val, val_labels = train[val_mask], train_labels[val_mask]
 
-errors_u, errors_d = [], []
+E_u, E_d = [], []
 for k in range(1, 21):
     knn_u, knn_d = KNeighborsClassifier(n_neighbors=k, weights='uniform'), KNeighborsClassifier(n_neighbors=k, weights='distance')
-    knn_u.fit(train.reshape(59000, -1), t_labels)
-    knn_d.fit(train.reshape(59000, -1), t_labels)
+    knn_u.fit(train_2.reshape(59000, -1), train_labels_2)
+    knn_d.fit(train_2.reshape(59000, -1), train_labels_2)
 
-    pred_u_labels, pred_d_labels = knn_u.predict(validation.reshape(1000, -1)), knn_d.predict(validation.reshape(1000, -1))
-    val_pred_u_labels, val_pred_d_labels = np.stack((v_labels, pred_u_labels), axis=1), np.stack((v_labels, pred_d_labels), axis=1)
+    pred_u_labels, pred_d_labels = knn_u.predict(val.reshape(1000, -1)), knn_d.predict(val.reshape(1000, -1))
+    val_pred_u_labels, val_pred_d_labels = np.stack((val_labels, pred_u_labels), axis=1), np.stack((val_labels, pred_d_labels), axis=1)
 
-    error_ratio_u, error_ratio_d = 1 - compute_accuracy(val_pred_u_labels, _), 1 - compute_accuracy(val_pred_d_labels, _)
-    errors_u.append(error_ratio_u)
-    errors_d.append(error_ratio_d)
+    error_u, error_d = 1 - compute_accuracy(val_pred_u_labels, _), 1 - compute_accuracy(val_pred_d_labels, _)
+    E_u.append(error_u)
+    E_d.append(error_d)
 
 k_range = np.linspace(1, 20, 20)
 
 plt.figure(figsize=(15, 5))
-plt.plot(k_range, errors_u, color='red', label='Uniform')
-plt.plot(k_range, errors_d, color='blue', label='Distance')
+plt.plot(k_range, E_u, color='red', label='Uniform')
+plt.plot(k_range, E_d, color='blue', label='Distance')
 plt.title('k-NN w/ Different Weighting')
 plt.xlabel('k Value')
 plt.ylabel('Error Ratio')
@@ -270,17 +270,19 @@ plt.ylabel('Error Ratio')
 plt.legend()
 plt.show()
 
-best_k = [errors_u.index(min(errors_u)) + 1, min(errors_u)]
+best_k = [E_u.index(min(E_u)) + 1, min(E_u)]
 best_weight = 'uniform'
+lowest_error = best_k[1]
 
-temp = [errors_d.index(min(errors_d)) + 1, min(errors_d)]
+temp = [E_d.index(min(E_d)) + 1, min(E_d)]
 if temp[1] < best_k[1]:
     best_k = temp[0]
     best_weight = 'distance'
+    lowest_error = temp[1]
 else:
     best_k = best_k[0]
 
-print(f'The best parameter set with lowest error is a k-value of {best_k} and {best_weight} weighting')
+print(f'The first best parameter set with lowest error is a k-value of {best_k} and {best_weight} weighting, with error ratio {lowest_error}')
 
 
 '''
@@ -291,11 +293,11 @@ Metrics for the output will be displayed
 '''
 
 knn = KNeighborsClassifier(n_neighbors=best_k, weights=best_weight)
-knn.fit(train_normalized.reshape(60000, -1), train_labels)
+knn.fit(train.reshape(60000, -1), train_labels)
 
-test_pred = knn.predict(test_normalized.reshape(10000, -1))
+test_labels_pred = knn.predict(test.reshape(10000, -1))
 
-test_pairs = np.stack((test_pred, test_labels), axis=1)
+test_pairs = np.stack((test_labels_pred, test_labels), axis=1)
 
 num_classes = 10
 
@@ -316,3 +318,139 @@ for i in range(num_classes):
         print(f' {cm[i, j]:2d}', end='')
     print()
 
+
+'''
+Six 'k' values: 5, 6, 7, 8, 9, and 10 will be used
+with different values for 'm' in PCA. All K-NN models
+will use the distance weighting since it is slightly
+better than uniform weighting
+
+Perform PCA (principal component analysis) on
+the data before training it
+
+PCA essentially reduces dimensionality in the data
+and retains the most important variation information
+via multiple 'principal components'
+
+The key parameter here is 'm', which is the number
+of principle components to consider
+'''
+
+E_5, E_6, E_7, E_8, E_9, E_10= [], [], [], [], [], []
+best_m, best_k, lowest_error = 0, 0, float('inf')
+for m in range(10, 150):
+    pca = PCA(n_components=m)
+
+    train_2_pca = pca.fit_transform(train_2.reshape(59000, -1))
+    val_pca = pca.transform(val.reshape(1000, -1))
+
+    knn_5, knn_6 = KNeighborsClassifier(n_neighbors=5, weights='distance'), KNeighborsClassifier(n_neighbors=6, weights='distance')
+    knn_7, knn_8 = KNeighborsClassifier(n_neighbors=7, weights='distance'), KNeighborsClassifier(n_neighbors=8, weights='distance')
+    knn_9, knn_10 = KNeighborsClassifier(n_neighbors=9, weights='distance'), KNeighborsClassifier(n_neighbors=10, weights='distance')
+
+    knn_5.fit(train_2_pca, train_labels_2)
+    knn_6.fit(train_2_pca, train_labels_2)
+    knn_7.fit(train_2_pca, train_labels_2)
+    knn_8.fit(train_2_pca, train_labels_2)
+    knn_9.fit(train_2_pca, train_labels_2)
+    knn_10.fit(train_2_pca, train_labels_2)
+
+    pred_5, pred_6 = knn_5.predict(val_pca.reshape(1000, -1)), knn_6.predict(val_pca.reshape(1000, -1))
+    pred_7, pred_8 = knn_7.predict(val_pca.reshape(1000, -1)), knn_8.predict(val_pca.reshape(1000, -1))
+    pred_9, pred_10 = knn_9.predict(val_pca.reshape(1000, -1)), knn_10.predict(val_pca.reshape(1000, -1))
+
+    val_pred_5, val_pred_6 = np.stack((val_labels, pred_5), axis=1), np.stack((val_labels, pred_6), axis=1)
+    val_pred_7, val_pred_8 = np.stack((val_labels, pred_7), axis=1), np.stack((val_labels, pred_8), axis=1)
+    val_pred_9, val_pred_10 = np.stack((val_labels, pred_9), axis=1), np.stack((val_labels, pred_10), axis=1)
+
+    error_5, error_6 = 1 - compute_accuracy(val_pred_5, _), 1 - compute_accuracy(val_pred_6, _)
+    error_7, error_8 = 1 - compute_accuracy(val_pred_7, _), 1 - compute_accuracy(val_pred_8, _)
+    error_9, error_10 = 1 - compute_accuracy(val_pred_9, _), 1 - compute_accuracy(val_pred_10, _)
+    E_5.append(error_5)
+    E_6.append(error_6)
+    E_7.append(error_7)
+    E_8.append(error_8)
+    E_9.append(error_9)
+    E_10.append(error_10)
+
+    if error_5 < lowest_error:
+        best_m = m
+        best_k = 5
+        lowest_error = error_5
+    if error_6 < lowest_error:
+        best_m = m
+        best_k = 6
+        lowest_error = error_6
+    if error_7 < lowest_error:
+        best_m = m
+        best_k = 7
+        lowest_error = error_7
+    if error_8 < lowest_error:
+        best_m = m
+        best_k = 8
+        lowest_error = error_8
+    if error_9 < lowest_error:
+        best_m = m
+        best_k = 9
+        lowest_error = error_9
+    if error_10 < lowest_error:
+        best_m = m
+        best_k = 10
+        lowest_error = error_10
+
+m_range = np.linspace(10, 150, 140)
+
+plt.figure(figsize=(15, 5))
+plt.plot(m_range, E_5, color='red', label='k = 5')
+plt.plot(m_range, E_6, color='orange', label='k = 6')
+plt.plot(m_range, E_7, color='yellow', label='k = 7')
+plt.plot(m_range, E_8, color='green', label='k = 8')
+plt.plot(m_range, E_9, color='blue', label='k = 9')
+plt.plot(m_range, E_10, color='purple', label='k = 10')
+plt.title('k-NN w/ Different PCA Component Amounts')
+plt.xlabel('m Value')
+plt.ylabel('Error Ratio')
+
+plt.legend()
+plt.show()
+
+print(f'The first best parameter set with lowest error is a k-value of {best_k} and {best_m} components, with error ratio {lowest_error}')
+
+
+'''
+The K-Nearest Neighbor model with PCA transformed data and
+optimal hyperparamters 'm' and 'k' will  be applied to the
+test and image data set
+
+Metrics for the output will be displayed
+'''
+
+pca = PCA(n_components=best_m)
+train_pca = pca.fit_transform(train.reshape(60000, -1))
+test_pca = pca.transform(test.reshape(10000, -1))
+
+knn = KNeighborsClassifier(n_neighbors=best_k, weights='distance')
+knn.fit(train_pca, train_labels)
+
+test_labels_pred = knn.predict(test_pca)
+
+test_pairs = np.stack((test_labels_pred, test_labels), axis=1)
+
+num_classes = 10
+
+accuracy = compute_accuracy(test_pairs, num_classes)
+print(f'accuracy: {accuracy:.4f}')
+
+per_class_accuracy = compute_per_class_accuracy(test_pairs, num_classes)
+print()
+print('Per class accuracy')
+for i, acc in enumerate(per_class_accuracy):
+    print(f'{i} ({class_names[i]}): {acc:.4f}')
+
+cm = compute_confusion_matrix(test_pairs, num_classes)
+print(f'\nConfusion matrix')
+for i in range(num_classes):
+    print(f'{i:2d}:', end='')
+    for j in range(num_classes):
+        print(f' {cm[i, j]:2d}', end='')
+    print()
