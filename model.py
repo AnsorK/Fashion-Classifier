@@ -281,3 +281,38 @@ else:
     best_k = best_k[0]
 
 print(f'The best parameter set with lowest error is a k-value of {best_k} and {best_weight} weighting')
+
+
+'''
+The K-Nearest Neighbor model with optimal hyperparameters
+'k' and 'weights' will  be applied to the test and image data set
+
+Metrics for the output will be displayed
+'''
+
+knn = KNeighborsClassifier(n_neighbors=best_k, weights=best_weight)
+knn.fit(train_normalized.reshape(60000, -1), train_labels)
+
+test_pred = knn.predict(test_normalized.reshape(10000, -1))
+
+test_pairs = np.stack((test_pred, test_labels), axis=1)
+
+num_classes = 10
+
+accuracy = compute_accuracy(test_pairs, num_classes)
+print(f'accuracy: {accuracy:.4f}')
+
+per_class_accuracy = compute_per_class_accuracy(test_pairs, num_classes)
+print()
+print('Per class accuracy')
+for i, acc in enumerate(per_class_accuracy):
+    print(f'{i} ({class_names[i]}): {acc:.4f}')
+
+cm = compute_confusion_matrix(test_pairs, num_classes)
+print(f'\nConfusion matrix')
+for i in range(num_classes):
+    print(f'{i:2d}:', end='')
+    for j in range(num_classes):
+        print(f' {cm[i, j]:2d}', end='')
+    print()
+
