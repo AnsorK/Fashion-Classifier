@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import requests
+from sklearn.decomposition import PCA
 from sklearn.neighbors import KNeighborsClassifier
 
 '''
@@ -116,3 +117,44 @@ print(f'''Within the testing set: {label_count_test[0]} items were a T-shirt/top
                         {label_count_test[8]} items were a Bag, and
                         {label_count_test[9]} items were an Ankle boot\n''')
 print('Both sets have uniform frequency for each fashion item: 0.1')
+
+
+'''
+Normalize the training and testing images to
+conform to a Gaussian distribution with mean 0
+and standard deviation of 1. Essentially mapping
+every data point into its corresponding amount in
+standard deviations
+
+Then build a K-Nearest Neighbor classifier on
+the normalized training data and use it to
+classify 25 random normalized testing images
+'''
+
+train_mean, test_mean = np.mean(train_images), np.mean(test_images)
+train_std, test_std = np.std(train_images), np.std(test_images)
+
+train_normalized, test_normalized = (train_images - train_mean) / train_std, (test_images - test_mean) / test_std
+
+random_test_images, random_test_labels = [], []
+random_indices = []
+for _ in range(25):
+    random_index = np.random.randint(0, 10000)
+    random_test_images.append(test_normalized[random_index])
+    random_test_labels.append(test_labels[random_index])
+    random_indices.append(random_index)
+
+random_test_images, random_test_labels = np.array(random_test_images), np.array(random_test_labels)
+
+knn_classifier = KNeighborsClassifier(n_neighbors=5)
+knn_classifier.fit(train_normalized.reshape(60000, -1), train_labels)
+
+test_predicted_labels = knn_classifier.predict(random_test_images.reshape(25, -1))
+
+A = np.stack((random_test_labels, test_predicted_labels), axis=1)
+
+for i in range(25):
+    if A[i][0] == A[i][1]:
+        print(f'Sample {random_indices[i]} - predicted output: {A[i][1]}, correct')
+    else:
+        print(f'Sample {random_indices[i]} - predicted output: {A[i][1]}, wrong: actual is {A[i][0]}')
